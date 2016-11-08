@@ -4,4 +4,4 @@ datasets
 logfile
 analyses
 TODO.txt
-*.DS_Store
+.DS_Store
