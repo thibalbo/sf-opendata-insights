@@ -1,6 +1,4 @@
-# Project Title
-
-SF Open Data Insights
+# SF Open Data Insights
 
 ## Getting Started
 
@@ -20,6 +18,8 @@ wget https://download3.rstudio.org/ubuntu-12.04/x86_64/shiny-server-1.5.0.831-am
 sudo gdebi shiny-server-1.5.0.831-amd64.deb
 ```
 
+For other platforms check [this reference](https://www.rstudio.com/products/shiny/download-server/).
+
 We will also use a local database to store our datasets. On your local machine:
 
 ```
@@ -30,25 +30,9 @@ createdb sf_opendata_insights
 
 ### Installing
 
-A step by step series of examples that tell you have to get a development env running
-
-Say what the step will be
-
-```
-Give the example
-```
-
-And repeat
-
-```
-until finished
-```
-
-End with an example of getting some data out of the system or using it for a little demo
 
 ## Deployment
 
-Add additional notes about how to deploy this on a live system
 
 ## Built With
 
