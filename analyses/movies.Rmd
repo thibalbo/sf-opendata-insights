@@ -19,8 +19,10 @@ knitr::opts_chunk$set(echo = TRUE, message=F, warning=F, fig.width=12, fig.heigh
 
 
 ```{r include=FALSE}
-packages <- c('data.table', 'RPostgreSQL', 'dplyr', 'ggplot2', 'RColorBrewer', 'plotly', 'zoo', 'lazyeval', 'corrplot', 'tidyr', 'DT', 'xgboost', 'Matrix', 'tm', 'wordcloud')
-install.packages(packages)
+# packages <- c('data.table', 'RPostgreSQL', 'dplyr', 'ggplot2', 'RColorBrewer', 'plotly', 'zoo', 'lazyeval', 'corrplot', 'tidyr', 'DT', 'xgboost', 'Matrix', 'tm', 'wordcloud', 'visNetwork')
+# install.packages(packages, dependencies=TRUE)
+# devtools::install_github("hadley/devtools")
+# devtools::install_github('mattflor/chorddiag')
 
 library(data.table)
 library(RPostgreSQL)
@@ -32,12 +34,15 @@ library(plotly)
 library(zoo)
 library(lazyeval)
 
-devtools::install_github('mattflor/chorddiag')
 library(chorddiag)
 
 library(corrplot)
 library(tidyr)
 library(DT)
+library(visNetwork)
+
+library(tm)
+library(wordcloud)
 
 gg_color_hue <- function(n) {
   hues = seq(15, 375, length = n + 1)
@@ -243,8 +248,6 @@ Seems like increasing the number of locations might increase your overall rating
 It's almost always a good choice to look at some network plots when you have data for that. Specially with this dataset, we can do pretty cool things. The vast majority of the most successful people in world is very well connected. Let's see how the actors, directors and writers are connected.
 
 ```{r}
-library(visNetwork)
-
 movies <- data.table(movies)
 actorsTogether <- unique(movies[, .(title, director, writer, actor_1, actor_2, actor_3)])
 actorsTogether[, title := NULL]
@@ -308,7 +311,6 @@ Here we're dealing with 227 different movies and 6 different series. It's a pret
 ### Is there any correlation between years, number of locations and rating?
 
 ```{r}
-library(corrplot)
 movies[, num_locations := .N, .(title)]
 varCor <- movies[!is.na(runtime), .(release_year, num_locations, imdbrating, runtime)]
 varCor <- data.table(model.matrix(~.-1, varCor))
@@ -406,10 +408,6 @@ Maybe we could be looking for the main idea behind each movie. Let's say we were
 2. Remove punctuations, convert to lower case and remove stop words
 
 ```{r}
-library(tm)
-library(RColorBrewer)
-library(wordcloud)
-
 movies2 <- copy(movies[,allinone := paste(title, release_year, locations, fun_facts, production_company, distributor, director, writer, actor_1, actor_2, actor_3, country, genre, language, type)])
 
 loan_descriptions.corpus <- Corpus(DataframeSource(data.frame(unique(movies2$allinone))))
