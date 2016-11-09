@@ -53,12 +53,19 @@ Go to your remote machine and type:
 sudo apt-get update
 sudo apt-get install git
 sudo apt install python3-pip
+sudo apt-get install libpq-dev python-dev python-psycopg2
 pip3 install virtualenv
 git clone https://github.com/thibalbo/sf-opendata-insights.git
 cd sf-opendata-insights
 virtualenv -p python3 venv
 source venv/bin/activate
 pip3 install -r requirements.txt
+```
+
+and then to run your application, simply:
+
+```
+python3 run.py
 ```
 
 
