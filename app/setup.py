@@ -2,6 +2,7 @@ import requests, re, os
 from app import config
 from pprint import pprint
 import psycopg2
+import csv, time
 
 pg_conn = config.get('LocalStorage')
 conn = psycopg2.connect(**pg_conn)
@@ -9,13 +10,59 @@ cur = conn.cursor()
 
 
 
-class Flow:
-    def __init__(self):
-        self.tasks = []
+class Scrape:
+
+    def save(self, dataset):
+        with open('datasets/imdb.csv', 'w') as csvfile:
+            fieldnames = sorted(dataset[0].keys())
+            print(fieldnames)
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(dataset)
+
+
+    def scrape(self, meta):
+        with open('datasets/movies.csv') as csvfile:
+            reader = csv.DictReader(csvfile)
+            sf_movies = [row for row in reader]
+
+        URL = 'http://www.omdbapi.com/'
+
+        movies = {}
+        for movie in sf_movies:
+            if movie['Title'] not in movies:
+                movies[movie['Title']] = {'Title': movie['Title'], 'Year': movie['Release Year']}
+
+        print('Movies to scrape:', len(movies))
+
+
+        cols = [c[0] for c in meta['columns']]
+        imdb = []
+        for i,(title, movie) in enumerate(movies.items()):
+            print(i+1, movie['Title'])
+
+            payload = dict(t=movie['Title'], y=movie['Year'], plot='Full', r='json')
+            resp = requests.get(URL, params=payload)
+            data = resp.json()
+
+            resp_type = data.get('Response')
+            if resp_type == 'Error':
+                continue
+
+            items = {}
+            for k,v in data.items():
+                if k in cols:
+                    items[k] = v
+
+            imdb.append(items)
+
+            time.sleep(0.1)
+
+        self.save(imdb)
 
 
 
-class Datasets:
+class Datasets(Scrape):
     """
     Download and copy specified datasets to Postgres.
     """
@@ -25,16 +72,6 @@ class Datasets:
         self.dataset_url = config.get('DatasetURL')
         self.pg_conn = config.get('LocalStorage')
         self.wdir = os.getcwd()
-
-
-    def get_datasets(self):
-        """
-        Manage the datasets download flow.
-        """
-        for dataset in self.datasets:
-            url = self.dataset_url.format(dataset['id'])
-            self.download_dataset(url, dataset)
-            self.create(dataset)
 
 
     def download_dataset(self, url, dataset):
@@ -57,7 +94,7 @@ class Datasets:
         return local_filename
 
 
-    def create(self, dataset):
+    def create(self, dataset, null='NULL'):
         """
         Create table and copy data.
 
@@ -78,64 +115,31 @@ class Datasets:
         ds_filename = self.dataset_filename.format(table)
         filename_fullpath = '/'.join([self.wdir, ds_filename])
 
-        query = "copy {} from '{}' with csv header null 'NULL'".format(
-                                        table, filename_fullpath)
+        query = "copy {} from '{}' with csv header null '{}'".format(
+                                        table, filename_fullpath, null)
 
         cur.execute(query)
-
-        # make sure data will persist
-        conn.commit()
+        conn.commit() # make sure data will persist
 
 
     def run(self):
+        """
+        Manage the datasets download flow.
+        """
         print('Running setup...')
-        self.get_datasets()
+        for dataset in self.datasets:
+            print(dataset['table'])
+
+            if dataset['download']:
+                url = self.dataset_url.format(dataset['id'])
+                self.download_dataset(url, dataset)
+                self.create(dataset)
+            else:
+                self.scrape(dataset)
+                self.create(dataset, null='N/A')
+
+
         print('Done.')
-
-
-
-
-
-
-
-
-
-# response = requests.get(url)
-# if response.status_code == 200:
-#     data = response.json()
-#
-# for k, v in data[0].items():
-#     print(k, type(v))
-
-
-# import requests, csv
-# from pprint import pprint
-# import time
-#
-#
-#
-#
-# with open('Film_Locations_in_San_Francisco.csv') as csvfile:
-#     reader = csv.DictReader(csvfile)
-#     sf_movies = [row for row in reader]
-#
-#
-# URL = 'http://www.omdbapi.com/'
-#
-# sf_movies = [{'Title': movie['Title'], 'Year': movie['Release Year']} for movie in sf_movies]
-# print(sf_movies)
-#
-# # meta = []
-# # for movie in sf_movies[:20]:
-# #     print(movie['Title'], movie['Release Year'])
-# #
-# #     # payload = dict(t=movie['Title'], y=movie['Release Year'], plot='Full', r='json')
-# #     #
-# #     # resp = requests.get(URL, params=payload)
-# #     # pprint(resp.json())
-# #     # print('\n\n\n')
-# #
-# #     # time.sleep(3)
 
 
 
@@ -162,9 +166,3 @@ def run():
 
     cur.close()
     conn.close()
-
-
-if __name__ == '__main__':
-    run()
-
-# things to do: luigi for scheduling init queries
