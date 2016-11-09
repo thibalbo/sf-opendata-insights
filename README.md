@@ -62,7 +62,7 @@ source venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
-and then to run your application, simply:
+Before running the application, go to the file config.yml and insert your instance DNS there. Then simply run the application with:
 
 ```
 python3 run.py
