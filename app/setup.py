@@ -145,6 +145,10 @@ class Datasets(Scrape):
 
 def run():
     print('Setup...')
+
+    os.system('mkdir datasets')
+    os.system('mkdir db')
+
     query = '''create table if not exists actions (action text, status bool, ts timestamp without time zone default (now() at time zone 'utc'));'''
     cur.execute(query)
 

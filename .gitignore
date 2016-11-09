@@ -2,7 +2,6 @@ config.yml
 db
 datasets
 logfile
-analyses
 TODO.txt
 .DS_Store
 __pycache__

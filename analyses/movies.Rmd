@@ -1,0 +1,535 @@
+---
+title: "Movies Exploratory Analyses"
+author: "Thiago Balbo"
+date: "November 08, 2016"
+output: 
+  html_document:
+    code_folding: hide
+    theme: cosmo
+    toc: yes
+    toc_depth: 4
+    toc_float: no
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=F, warning=F, fig.width=12, fig.height=5)
+```
+
+
+
+```{r include=FALSE}
+library(data.table)
+library(RPostgreSQL)
+
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+library(plotly)
+library(zoo)
+library(lazyeval)
+
+devtools::install_github('mattflor/chorddiag')
+library(chorddiag)
+
+library(corrplot)
+library(tidyr)
+library(DT)
+
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+cols <- gg_color_hue(4)
+
+source('/Users/thiago/Documents/rscripts/fte_theme.R')
+
+drv <- dbDriver("PostgreSQL")
+con <- dbConnect(drv, host='localhost', port='5432', dbname='challengedb')
+
+movies <- dbGetQuery(con, 'select * from movies')
+movies <- data.table(movies)
+
+imdb <- dbGetQuery(con, 'select * from imdb')
+imdb <- data.table(imdb)
+
+dbDisconnect(con)
+dbUnloadDriver(drv)
+```
+
+
+## Overview
+
+If you are either a decision maker in government looking for **XXXXXXXXXX**, commerce that would **XXXXXXXXXX**, student or just looking for beautiful plots you came for the right place. This analysis focus on generating useful insights based on the [Film Locations in San Francisco](https://data.sfgov.org/Culture-and-Recreation/Film-Locations-in-San-Francisco/yitu-d5am) dataset available on [SF Open Data](https://data.sfgov.org/) and data scraped from [The Open Movie Database](http://www.omdbapi.com/).
+
+In this analysis we will explore the data in a lot of different forms: showing data in tabular form, plotting results in simple and more complex plots but not loosing sight of what is more important - the content. We will start by looking at generic metrics and then come up with more interesting questions at the end.
+
+This report was made to as clean as possible so you won't see any code unless you click on the "code" on the right handside above each plot. The raw code is also available on [github](https://github.com/thibalbo/sf-opendata-insights).
+
+If you have any questions or suggestions you are more than encouraged to ask them at thiago.dbalbo@gmail.com. I'd love to hear them all in order to improve the analysis.
+
+***
+
+## Getting Started
+
+Let's start by looking at the number of movies produced in San Francisco over the years. It will give us a picture about how hot is the market.
+
+```{r, fig.width=9.45}
+moviesYears <- movies %>% 
+  group_by(release_year) %>% 
+  summarise(num = n_distinct(title)) %>% 
+  arrange(release_year) %>%
+  mutate(rollmean_8 = rollapply(num, 8, mean, partial=T, align='right'))
+  
+ggplotly(ggplot(data = moviesYears, aes(release_year, num)) +
+  fte_theme() +
+  geom_bar(stat = 'identity', colour = 'white') +
+  geom_line(aes(y=rollmean_8), size=.5, linetype=1, colour='red') +
+  scale_x_continuous(breaks = seq(1900,2100,10)) +
+  labs(title = 'Movies released yearly', y = 'number of movies released', x = 'release year'))
+```
+
+<br>
+Looking at the plot we see that the number of releases stay in a constant rate until the 60s when it shows some signs of growth. From that point on we see a trend (red line - rollmean with window of size 8) where the number of releases grow faster but we see gap between 2006 and 2009 not following that trend. That could be due to the lack of data in that period or some issues might have happened on those years. We see that the number of releases seem to be on a constant rate on the following years, starting to grow again in 2014 with a huge spike in 2015. Also, it's important to note that we are dealing with small amounts (number of releases range from 0 to 10 on average) so any kind of decision based on those numbers need to be careful. It's also important to note that 2017 is not complete yet and will have a higher number of releases.
+
+Let's see who are the most popular actors in SF:
+
+```{r}
+actors <- select(movies, title, actor_1:actor_3) %>% 
+  gather(actor, name, actor_1:actor_3) %>%
+  group_by(name) %>%
+  summarise(num = n_distinct(title)) %>%
+  arrange(desc(num)) %>%
+  filter(name != '') %>%
+  mutate(rank = rank(desc(num), ties.method='min')) %>%
+  select(rank, name, num)
+
+DT::datatable(actors, rownames = FALSE, colnames = c("Rank", "Name", "Number of movies"), 
+  options = list(dom = 't', autoWidth = TRUE, columnDefs = list(list(width = '150px', targets = c(1)))))
+```
+
+
+If we're planning to shoot a movie and have no idea about which distributor, director or production we want to contact we could check a list of the most popular ones first. Let's check it out:
+
+```{r, echo = FALSE}
+selectInput('choices', 'Select a column', c('distributor', 'director', 'production_company'))
+
+renderPlot({
+  gvariable <- input$choices
+  filter_crit = interp(~ gvariable != '', gvariable = as.name(gvariable))
+  
+  df <- data.frame(movies %>% 
+    group_by_(input$choices) %>% 
+    filter_(filter_crit) %>%
+    summarise(num = n_distinct(title)) %>%
+    arrange(desc(num)))
+  
+  df[,1] <- factor(df[,1], levels = df[order(df[,2]),1])
+  
+  ggplot(data = head(df,25), aes_string(input$choices, "num")) +
+    coord_flip() +
+    fte_theme() +
+    geom_bar(stat = 'identity') +
+    labs(title = paste0('Most popular ', input$choices), y = 'number of movies', x = '')
+})
+```
+
+We see that Garry Marshall, Chris Columbus and Alfred Hitchcock are the most popular directors, Warner Bros. Pictures is the most popular company for distribution and Warner Bros. Pictures and Paramount Pictures are the most popular companies for production. Let's stay away from them on our first movie (`$$$$$`).
+
+We have also loaded the IMDB dataset containing the rating and other information about the movies. Let's get its data.
+
+```{r}
+movies <- merge(movies, imdb, by = 'title', all.x=T)
+uniqueMovies <- length(unique(movies$title))
+notNAMovies <- length(unique(movies[!is.na(imdbrating), title]))
+cat('Available Ratings: ', notNAMovies/uniqueMovies)
+```
+
+We didn't find the ratings for all our movies. More specifically, we have found 75.6% ratings. On the next plots we will use only the ones with ratings available. By checking the ones with NA we see that some are due to the fact that they were not released yet. To avoid possible bias we should also check:
+
+1. Is there any other form to get the missing ones - except the TBD? Maybe changing our scraper to search lower case or clean some titles?
+2. What movies are missing? Maybe old ones? Maybe shorter ones? Series?
+
+Let's dive a little bit in the data. We'll start by looking at the correlation between the runtime and the rating but first we will clean the data as mentioned above.
+
+```{r}
+# cleaning data
+movies <- movies[!is.na(imdbrating)]
+movies[, imdbrating := as.numeric(imdbrating)]
+movies[, imdbvotes := as.numeric(imdbvotes)]
+movies[, runtime := as.numeric(gsub(' min', '', runtime))]
+
+ggplot(data = movies, aes(imdbrating, runtime)) +
+  fte_theme() +
+  geom_point() +
+  geom_smooth(method = 'lm', alpha=.15)
+```
+
+Looking at the regression line we might say there is no correlation - it's almost flat. But the regression also considered the outliers. If we don't consider them we see a slightly increase on the rating as the runtime increases. But that could be just noise due to just a few observations.
+
+***
+
+## Let's dive into the data
+
+Before making any analysis I like to come up with questions that I find interesting and useful at first and then explore the data. I find this method much more eficient than just diving straight into the analysis for three reasons: 
+
+1. You often end up needing to make the analysis again because you forgot something
+2. It helps you get a better understanding of the problem and move on the right direction right at first
+3. More insights often come up with this process
+
+I've written down some questions, let's see if we can answer them with the data we have.
+
+
+### Should I shoot on multiple locations to increase the rating?
+
+```{r}
+movies <- movies %>% group_by(title) %>% mutate(num_locations = n()) %>% group_by()
+df <- unique(select(movies, num_locations, imdbrating))
+
+ggplot(data = df, aes(num_locations, imdbrating)) +
+  fte_theme() +
+  geom_point() +
+  geom_smooth(method='lm', colour = cols[2], alpha = .15) +
+  labs(x = 'number of locations', y = 'rating', title = 'Rating based on the number of different locations the movie was shot')
+```
+
+Seems like increasing the number of locations might increase your overall rating. But that could also mean that the score get a little better because if the producers can pay for more locations, the director, actors and writers they are probably makinga more high quality content and that would be why the score increases.
+
+
+### How connected is that network?
+
+It's almost always a good choice to look at some network plots when you have data for that. Specially with this dataset, we can do pretty cool things. The vast majority of the most successful people in world is very well connected. Let's see how the actors, directors and writers are connected.
+
+```{r}
+library(visNetwork)
+
+movies <- data.table(movies)
+actorsTogether <- unique(movies[, .(title, director, writer, actor_1, actor_2, actor_3)])
+actorsTogether[, title := NULL]
+
+df <- data.table()
+for (i in 1:nrow(actorsTogether)) {
+  x <- as.character(actorsTogether[i])
+  tmp <- data.table(t(combn(x, 2)))
+  
+  df <- rbind2(df, tmp)
+}
+
+df <- df[V1 != ''][V2 != '']
+df <- df %>% group_by(V1, V2) %>% summarise(num = n()) %>% arrange(desc(num))
+
+nodes <- table(c(df$V1, df$V2))
+nodes <- as.data.frame(nodes)
+colnames(nodes) <- c('label', 'value')
+nodes$id <- 1:nrow(nodes)
+nodes$title <- paste0(nodes$label, " (", nodes$value, ")")
+
+directors <- unique(movies$director)
+writers <- unique(movies$writer)
+nodes$group <- "Actor"
+nodes$group[nodes$label %in% directors] <- "Director"
+
+nodes$group[nodes$label %in% writers] <- "Writer"
+
+edges <- data.frame(
+  from = sapply(df$V1, function(z) nodes$id[nodes$label == z]),
+  to = sapply(df$V2, function(z) nodes$id[nodes$label == z]),
+  value = df$num,
+  title = paste0('Number of movies ', df$num)
+)
+
+edges1 <- edges[1:50,]
+u.edges <- unique(edges1$from)
+nodes1 <- filter(nodes, id %in% u.edges)
+
+visNetwork(nodes1, edges1) %>% 
+  visOptions(highlightNearest = list(enabled = TRUE, degree = 5), selectedBy = "group")
+```
+
+For the visualization I have capped the number of edges to 1000 because it takes a long time to run all network. It's also important to note that the number between the brackets means the number of connections (both ways count). We see there are 3 main groups: in one of them, even though is fairly large, people seem to be more strict and do not have many connetions while on the othe two the group is larger and people seem to have more than just a couple connections each.
+
+
+### Why series seem to have higher ratings on average?
+
+Browsing movies and series online it seems like movies have lower rating on average. You can find pretty good ones on its 7s but I find harder to find good series on that average. This one is going to be pretty straigh forward (hover the plot for more details):
+
+```{r, fig.width=9.45}
+umovies <- unique(movies[,.(title, type, imdbrating)])
+ggplotly(ggplot(data = umovies, aes(type, imdbrating)) +
+  fte_theme() +
+  geom_boxplot(width = .3) +
+  labs(x = '', y = 'imdb rating'))
+```
+
+Here we're dealing with 227 different movies and 6 different series. It's a pretty small sample for series so it is extremely difficult to come up with a solid conclusion. It **seems** like series ratings indeed have higher rating on average and lower variance but we would need to gather more data for a solid conclusion. Why would series have higher rating on average? Maybe movies attract a broader kind of audience, countries, cultures and critics on average so it's harder to please them all.
+
+### Is there any correlation between years, number of locations and rating?
+
+```{r}
+library(corrplot)
+movies[, num_locations := .N, .(title)]
+varCor <- movies[!is.na(runtime), .(release_year, num_locations, imdbrating, runtime)]
+varCor <- data.table(model.matrix(~.-1, varCor))
+corrplot(cor(varCor), method='color', type='upper', tl.col="black", tl.srt=60, diag=T, tl.cex=.7, mar=c(5,5,5,5), addCoef.col="black")
+```
+
+We see that all correlations are weak, but seems like there is a negative correlation between runtime and number of locations.
+
+```{r, fig.height=8, fig.align='center'}
+selectInput('choices2', 'Select a column', c('distributor', 'director', 'production_company', 'writer', 'genre'))
+
+renderPlot({
+  
+var <- input$choices2
+
+df <- movies %>% 
+  group_by_(var) %>% 
+  summarise(num = n_distinct(title)) %>% 
+  arrange(desc(num))
+
+values <- head(df[[1]], 25)
+
+keyCols <- c('imdbrating', var)
+setkeyv(movies, keyCols)
+
+varCor <- movies[!is.na(runtime)]
+
+e <- parse(text=paste0(var, " %in% values"))
+varCor <- varCor[eval(e)]
+
+e <- parse(text=paste0("unlist(strsplit(", var, ", ','))"))
+varCor <- varCor[, list(raw = eval(e)), .(imdbrating)]
+
+varCor <- data.table(model.matrix(~.-1, varCor))
+colnames(varCor) <- gsub('raw |raw', '', colnames(varCor))
+
+corrplot(cor(varCor), method='color', type='upper', tl.col="black", tl.srt=60, diag=FALSE, tl.cex=.7)
+
+})
+```
+
+Looking at the correlation plots we don't see any strong correlation in there.
+
+
+### Wanna get your movie popular?
+
+Let's say you want to start by doing a movie where you will have more chances of getting better up votes. There are a few of them that the public tend to like the most. Check them out (red line shows the median rating):
+
+```{r, fig.height=15}
+sliderInput("num_significant", "Required obs to consider significant:", min = 1, max = 60, value = 15)
+
+renderPlot({
+  
+mRating <- movies %>%
+  group_by(genre) %>%
+  summarise(mrating = median(imdbrating), num = n()) %>%
+  arrange(desc(mrating)) %>%
+  filter(!is.na(genre)) %>%
+  mutate(significant = ifelse(num >= input$num_significant, '1', '0'))
+
+mRating$genre <- factor(mRating$genre, mRating$genre)
+
+median_rating <- median(unique(movies[, .(title, imdbrating)])$imdbrating)
+
+ggplot(data = mRating, aes(genre, mrating, colour = significant)) +
+  fte_theme() +
+  geom_hline(yintercept = median_rating, colour = cols[1]) +
+  scale_y_continuous(breaks = seq(0,10,.5)) +
+  coord_flip() +
+  geom_point() +
+  labs(y = 'median rating', title = 'Most popular movie genres')
+
+}, height=1000)
+```
+
+Seems like you would be fine with a mix of Drama, Mistery and Sci-Fi. But don't forget to check the numbers. Some with good rating might have just one movie rated:
+
+```{r}
+mRating <- movies %>%
+  group_by(genre) %>%
+  summarise(mrating = median(imdbrating), num = n()) %>%
+  arrange(desc(mrating)) %>%
+  filter(!is.na(genre))
+
+datatable(mRating, rownames = FALSE, colnames = c("Genre", "Rating", "Number of movies"), 
+  options = list(dom = 't', autoWidth = TRUE, columnDefs = list(list(width = '150px', targets = c(1)))))
+```
+
+
+### What's the context
+
+Maybe we could be looking for the main idea behind each movie. Let's say we were trying to predict the genre of the movie based on its description. We could use *word2vec* for that. But just for simplicity and because we don't have many data available, I plotted a word cloud with all information we had about the movies. The process I did before plotting is simple:
+
+1. We first put together all the data we have
+2. Remove punctuations, convert to lower case and remove stop words
+
+```{r}
+library(tm)
+library(RColorBrewer)
+library(wordcloud)
+
+movies2 <- copy(movies[,allinone := paste(title, release_year, locations, fun_facts, production_company, distributor, director, writer, actor_1, actor_2, actor_3, country, genre, language, type)])
+
+loan_descriptions.corpus <- Corpus(DataframeSource(data.frame(unique(movies2$allinone))))
+loan_descriptions.corpus <- tm_map(loan_descriptions.corpus, removePunctuation)
+loan_descriptions.corpus <- tm_map(loan_descriptions.corpus, content_transformer(tolower))
+loan_descriptions.corpus <- tm_map(loan_descriptions.corpus, removeWords, stopwords('english'))
+
+wordcloud(loan_descriptions.corpus,
+          max.words = 600,
+          random.order=FALSE, 
+          rot.per=0.30, 
+          use.r.layout=FALSE, 
+          scale=c(3,.3),
+          colors=brewer.pal(8, "Paired"))
+```
+
+We see that the most popular words in the dataset are some producer companies, movie genres and countries.
+
+***
+
+## Predictions
+
+Based on the producer company, director, actors, and all the other feature we have we want to predict what is going to be our movies' imdb rating. If we were building the model for production we would need more features for this task to improve our accuracy but since we're still in dev mode the ones we have will work out.
+
+We will use the XGBoost for this task, the best ensemble model nowadays that is winning most of the data science competitions on Kaggle. We will use a single model and not an emsemble or stacking techniques just for simplicity.
+
+After pre-processing the data we will split it into a training and a testing set. The training set will have 80% of the data. We will perform an 8-fold cross-validation. Because the early stop method is not working at this version of the XGBoost package, I've already run the model and hard-coded the best number of iterations (~500) in the code.
+
+We will use the RMSE for evaluation, a common metric when predicting a continuous target.
+
+The transformations I've done:
+
+1. Convert categorical features to continuous 
+2. Create count features based on the categoricals
+
+A few other transformations could have been done:
+
+1. Instead of just telling the model to treat all NAs as just another "class of data" better transformations could have been done
+2. Creating linear and exponential combination of features
+3. Split continuous variables into buckets
+4. Scrape other features (movie description, related movies, revenue, production cost and others)
+5. Count number of distinct countries for each movie (positive correlation with target (?))
+
+
+```{r}
+library(Matrix)
+library(xgboost)
+
+RUN.CV <- FALSE
+set.seed(1234)
+
+X <- movies
+X[, rating100 := NULL]
+features <- names(X)
+indices <- sample(1:nrow(X), as.integer(.8*nrow(X)))
+
+for (f in features) {
+  if (class(X[[f]]) == 'character') {
+    # Feature engineering
+    var <- paste0(f, '_cat')
+    mutate_call = lazyeval::interp(~ n())
+    X <- X %>% group_by_(f) %>% mutate_(.dots = setNames(list(mutate_call), var))
+    
+    levels <- unique(X[[f]])
+    X[[f]] <- as.integer(factor(X[[f]], levels=levels))
+  }
+}
+
+x_train <- X[indices,]
+x_train <- select(x_train, -imdbrating)
+x_test <- X[-indices,]
+
+dtrain <- xgb.DMatrix(as.matrix(x_train), label=X$imdbrating[indices], missing=NaN)
+dtest <- xgb.DMatrix(as.matrix(x_test), missing=NaN)
+
+xgb_params = list(
+  colsample_bytree = 0.7,
+  subsample = 0.7,
+  eta = 0.075,
+  objective = 'reg:linear',
+  max_depth = 6,
+  num_parallel_tree = 1,
+  min_child_weight = 1,
+  base_score = 7)
+
+best_nrounds <- 500
+if (RUN.CV) {
+  res <- xgb.cv(xgb_params,
+    dtrain,
+    nrounds=500,
+    nfold=8,
+    early_stopping_rounds=15,
+    print_every_n = 10,
+    verbose= 0,
+    metrics='rmse',
+    maximize=FALSE)
+  
+  best_nrounds <- 500
+  cv_mean <- res$test.rmse.mean[best_nrounds]
+  cv_std <- res$test.rmse.std[best_nrounds]
+  cat(paste0('CV-Mean: ', cv_mean,' ', cv_std))
+}
+
+gbdt <- xgb.train(xgb_params, dtrain, best_nrounds*(1+1/8))
+preds <- predict(gbdt,dtest)
+
+imp <- xgb.importance(model=gbdt)
+imp$Feature <- colnames(X)[as.integer(imp$Feature) + 1]
+DT::datatable(imp, rownames = FALSE, colnames = c("Feature", "Gain", "Cover", "Frequency"), 
+  options = list(dom = 't', autoWidth = TRUE, columnDefs = list(list(width = '250px', targets = c(1)))))
+```
+
+<br>
+`Gain` is the improvement in accuracy brought by a feature to the branches it is on
+<br>
+`Cover` measures the relative quantity of observations concerned by a feature
+<br>
+`Frequency` is a simpler way to measure the `Gain`. It just counts the number of times a feature is used in all generated trees
+
+By looking at the table we see the most important variable is the number of votes a movie received. The variables we have created performed ok: *#5 director_cat*, *#6 fun_facts_cat* and *#10 writer_cat* on the top 10.
+
+
+Small increases on the number of observations increase the prediction accuracy a lot (even if we don't re-fine-tune the parameters) because we're training with a small sample so any additional observation counts a lot. Let's take a look at our RMSE:
+
+```{r}
+ytrue <- X[-indices,]$imdbrating
+cat('RMSE: ', sqrt(sum((preds-ytrue)**2)/length(ytrue)))
+```
+
+
+***
+
+## Improvements
+
+* Fourier analysis for movie trend timeseries
+* Come up with more insightful questions
+* Get more data and improve the prediction model with blending and stacking techniques
+* Clean the code
+
+
+## Reference
+
+[XGBoost](http://xgboost.readthedocs.io/en/latest/R-package/discoverYourData.html)
+[RMSE](https://en.wikipedia.org/wiki/Root-mean-square_deviation)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
