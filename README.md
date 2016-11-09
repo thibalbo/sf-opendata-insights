@@ -47,6 +47,7 @@ sudo apt install virtualenv
 virtualenv -p python3 venv
 source venv/bin/activate
 pip3 install -r requirements.txt
+deactivate
 ```
 
 We will also use a local database to store our datasets. On the root directory of your project run:
@@ -57,18 +58,15 @@ sudo -u postgres psql postgres
 \password postgres
 1234
 1234
-create database sf_opendata_insights
+create database sf_opendata_insights;
 \q
-
 
 mkdir db
 /usr/lib/postgresql/9.5/bin/initdb -D db
 /usr/lib/postgresql/9.5/bin/pg_ctl -D db -l logfile start
-
-/usr/lib/postgresql/9.5/bin/createdb
 ```
 
-Before running the application, go to the file config.yml and insert your instance DNS there. Then run the setup file
+Before running the application, go to the file config.yml on your root directory and insert your instance DNS and local database configuration there. Then run the setup file:
 
 ```
 python3 setup.py
@@ -76,9 +74,26 @@ python3 setup.py
 
 It will create tables, download the datasets and scrape new content (that might take a couple minutes).
 
-After that, simply run the application with:
+You will also need to install some R packages. Go to the terminal and run:
 
 ```
+R
+packages <- c('data.table', 'RPostgreSQL', 'dplyr', 'ggplot2', 'RColorBrewer', 'plotly', 'zoo', 'lazyeval', 'corrplot', 'tidyr', 'DT', 'xgboost', 'Matrix', 'tm', 'wordcloud', 'visNetwork')
+install.packages(packages, dependencies=TRUE)
+devtools::install_github("hadley/devtools")
+devtools::install_github('mattflor/chorddiag')
+```
+
+That should take a few minutes. After that, simply run the application with:
+
+Now you need to move all the .Rmd analyses under the directory analyses to the directory /srv/shiny-server/. At the moment you just need to move the file movies.Rmd.
+
+i.e. Let's say there is a movies.Rmd file under the analyses directory. Then move it to `/srv/shiny-server/movies/movies.Rmd`
+
+If you don't have the directory `/srv` you will have to create it.
+
+```
+source venv/bin/activate
 python3 run.py
 ```
 
