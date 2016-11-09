@@ -35,18 +35,31 @@ sudo gdebi shiny-server-1.5.0.831-amd64.deb
 
 For other platforms check [this reference](https://www.rstudio.com/products/shiny/download-server/).
 
-We will also use a local database to store our datasets. On your local machine:
+We will also use a local database to store our datasets. Go to the root of your project and on your local machine run:
 
 ```
+mkdir db
 initdb -D db
 pg_ctl -D db -l logfile start
 createdb sf_opendata_insights
 ```
 
-### Installing
-
 
 ## Deployment
+
+Go to your remote machine and type:
+
+```
+sudo apt-get update
+sudo apt-get install git
+sudo apt install python3-pip
+pip3 install virtualenv
+git clone https://github.com/thibalbo/sf-opendata-insights.git
+cd sf-opendata-insights
+virtualenv -p python3 venv
+source venv/bin/activate
+pip3 install -r requirements.txt
+```
 
 
 ## Built With
@@ -56,10 +69,3 @@ createdb sf_opendata_insights
 ## Contributing
 
 The best way is to send a pull request.
-
-## Versioning
-
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
