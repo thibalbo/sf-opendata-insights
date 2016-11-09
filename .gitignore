@@ -6,3 +6,4 @@ analyses
 TODO.txt
 .DS_Store
 __pycache__
+deploy.py

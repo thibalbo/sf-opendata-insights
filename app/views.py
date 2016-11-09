@@ -12,7 +12,7 @@ pg_conn = config.get('LocalStorage')
 def index():
     if request.method == 'POST':
         setup.run()
-        next_endpoint = 'projects'
+        next_endpoint = 'analyses'
         return next_endpoint
 
     conn = psycopg2.connect(**pg_conn)
@@ -27,6 +27,7 @@ def index():
 
 @app.route('/plain')
 def plain():
+    # Change this function to accept dataset paramter as /str:param instead of ?param=
     dns = config.get('Instance')['PublicDNS']
     port = config.get('Instance')['ShinyPort']
     protocol = config.get('Instance')['Protocol']

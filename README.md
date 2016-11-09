@@ -2,7 +2,7 @@
 
 ## Intro
 
-Before going straight into the code, let's check out what you'll get. The web app will provide you with a lot of different insightful plots. Check them out:
+Before going straight into the code, let's check out what you'll get. The web app will provide you a lot of different insightful plots. Check a few of them out:
 
 Visualization Networks:
 ![VisNet](app/static/img/repo/vis.png)
