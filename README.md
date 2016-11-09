@@ -35,34 +35,48 @@ sudo gdebi shiny-server-1.5.0.831-amd64.deb
 
 For other platforms check [this reference](https://www.rstudio.com/products/shiny/download-server/).
 
-We will also use a local database to store our datasets. Go to the root of your project and on your local machine run:
-
-```
-mkdir db
-initdb -D db
-pg_ctl -D db -l logfile start
-createdb sf_opendata_insights
-```
-
 
 ## Deployment
 
-Go to your remote machine and type:
+Go to your local machine and run:
 
 ```
-sudo apt-get update
-sudo apt-get install git
-sudo apt install python3-pip
-sudo apt-get install libpq-dev python-dev python-psycopg2
-pip3 install virtualenv
 git clone https://github.com/thibalbo/sf-opendata-insights.git
 cd sf-opendata-insights
+sudo apt install virtualenv
 virtualenv -p python3 venv
 source venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
-Before running the application, go to the file config.yml and insert your instance DNS there. Then simply run the application with:
+We will also use a local database to store our datasets. On the root directory of your project run:
+
+```
+sudo apt-get install postgresql postgresql-contrib
+sudo -u postgres psql postgres
+\password postgres
+1234
+1234
+create database sf_opendata_insights
+\q
+
+
+mkdir db
+/usr/lib/postgresql/9.5/bin/initdb -D db
+/usr/lib/postgresql/9.5/bin/pg_ctl -D db -l logfile start
+
+/usr/lib/postgresql/9.5/bin/createdb
+```
+
+Before running the application, go to the file config.yml and insert your instance DNS there. Then run the setup file
+
+```
+python3 setup.py
+```
+
+It will create tables, download the datasets and scrape new content (that might take a couple minutes).
+
+After that, simply run the application with:
 
 ```
 python3 run.py

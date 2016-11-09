@@ -1,6 +1,6 @@
 # EC2 Instance information
 Instance:
-    PublicDNS: <YOUR_INSTANCE_DNS_HERE>
+    PublicDNS: <YOUR_INSTANCE_DNS>
     ShinyPort: 3838
     Protocol: http
 

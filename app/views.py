@@ -8,13 +8,7 @@ pg_conn = config.get('LocalStorage')
 
 
 
-@app.route('/', methods=['GET','POST'])
-def index():
-    if request.method == 'POST':
-        setup.run()
-        next_endpoint = 'analyses'
-        return next_endpoint
-
+def check_actions():
     conn = psycopg2.connect(**pg_conn)
     cur = conn.cursor()
     cur.execute('''select status from actions where action = 'setup';''')
@@ -22,20 +16,23 @@ def index():
     cur.close()
     conn.close()
 
-    return render_template('index.html', setup=setup_made)
+    return setup_made
 
 
-@app.route('/plain')
-def plain():
-    # Change this function to accept dataset paramter as /str:param instead of ?param=
+@app.route('/', methods=['GET','POST'])
+def index():
+    return render_template('index.html', setup=True)
+
+
+@app.route('/analyses/<string:dataset>')
+def plain(dataset=None):
     dns = config.get('Instance')['PublicDNS']
     port = config.get('Instance')['ShinyPort']
     protocol = config.get('Instance')['Protocol']
 
-    address = '{0}://{1}:{2}/001-hello/'.format(protocol, dns, port)
+    address = '{0}://{1}:{2}/{3}/'.format(protocol, dns, port, dataset)
 
-    ds = request.args.get('dataset')
-    return render_template('plain_page.html', dataset=ds,
+    return render_template('plain_page.html', dataset=dataset,
                                         analysis_address=address)
 
 
