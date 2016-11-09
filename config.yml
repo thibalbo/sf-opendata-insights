@@ -1,0 +1,90 @@
+# EC2 Instance information
+Instance:
+    PublicDNS: <YOUR_INSTANCE_DNS_HERE>
+    ShinyPort: 3838
+    Protocol: http
+
+# Endpoint to download datasets from
+DatasetURL: https://data.sfgov.org/api/views/{0}/rows.csv?accessType=DOWNLOAD
+
+# filename "template" to save datasets
+DatasetFilename: datasets/{0}.csv
+
+# Datasets information
+# `table` will be used as the name of the file and the table
+# columns need to have the same order as the original dataset
+Datasets:
+  - name: Film Locations in San Francisco
+    id: wwmu-gmzc
+    table: movies
+    download: true
+    columns: # list of lists to preserve order
+      - - title
+        - text
+      - - release_year
+        - int
+      - - locations
+        - text
+      - - fun_facts
+        - text
+      - - production_company
+        - text
+      - - distributor
+        - text
+      - - director
+        - text
+      - - writer
+        - text
+      - - actor_1
+        - text
+      - - actor_2
+        - text
+      - - actor_3
+        - text
+
+  - name: Park Scores 2005-2014
+    id: fjq8-r8ws
+    table: park_scores
+    download: true
+    columns:
+      - - parkid
+        - bigint
+      - - psa
+        - text
+      - - park
+        - text
+      - - fq
+        - text
+      - - score
+        - float
+
+  - name: IMDB Ratings
+    id:
+    table: imdb
+    download: false
+    columns:
+      - - Country
+        - text
+      - - Genre
+        - text
+      - - Language
+        - text
+      - - Runtime
+        - text
+      - - Title
+        - text
+      - - Type
+        - text
+      - - imdbRating
+        - text
+      - - imdbVotes
+        - text
+
+# Persistant layer credentials
+# Add your local database credentials here
+LocalStorage:
+  host: localhost
+  port: 5432
+  user:
+  dbname: sf_opendata_insights
+  password:
