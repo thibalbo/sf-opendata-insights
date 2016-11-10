@@ -84,11 +84,11 @@ sudo apt-get install r-cran-slam
 sudo su - -c "R -q -e \"packages <- c('data.table', 'RPostgreSQL', 'dplyr', 'ggplot2', 'RColorBrewer', 'plotly', 'zoo', 'lazyeval', 'corrplot', 'tidyr', 'DT', 'xgboost', 'Matrix', 'tm', 'wordcloud', 'visNetwork', 'rmarkdown'); install.packages(packages, repos = 'http://cran.rstudio.com/', dependencies=TRUE, lib='/usr/local/lib/R/site-library')\""
 ```
 
-That should take a few minutes. After that, simply run the application with:
+That should take a few minutes.
 
-Now you need to move all the .Rmd analyses under the directory analyses to the directory /srv/shiny-server/. At the moment you just need to move the file movies.Rmd.
+Now you need to move all the `.Rmd` analyses under the directory analyses to the directory `/srv/shiny-server/`. At the moment you just need to move the file `movies.Rmd`.
 
-i.e. Let's say there is a movies.Rmd file under the analyses directory. Then move it to `/srv/shiny-server/movies/movies.Rmd`
+i.e. Let's say there is a `movies.Rmd` file under the `analyses` directory. Then move it to `/srv/shiny-server/movies/movies.Rmd`
 
 If you don't have the directory `/srv` you will have to create it.
 
