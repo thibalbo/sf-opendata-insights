@@ -100,11 +100,11 @@ fte_theme <- function() {
 
 ## Overview
 
-If you are either a decision maker in government, commerce, student or just looking for beautiful plots and insights you came for the right place. This analysis focus on generating useful insights based on the [Film Locations in San Francisco](https://data.sfgov.org/Culture-and-Recreation/Film-Locations-in-San-Francisco/yitu-d5am) dataset available on [SF Open Data](https://data.sfgov.org/) and data scraped from [The Open Movie Database](http://www.omdbapi.com/).
+If you are either a decision maker in government, commerce, student or just looking for beautiful plots and insights you came for the right place. This analysis focus on generating useful insights based on the [Film Locations in San Francisco](https://data.sfgov.org/Culture-and-Recreation/Film-Locations-in-San-Francisco/yitu-d5am) dataset available on [SF Open Data](https://data.sfgov.org/) and data scraped from [The Open Movie Database](http://www.omdbapi.com/) on setup time.
 
 In this analysis we will explore the data in a lot of different forms: showing data in tabular form, plotting results in simple and more complex plots but not loosing sight of what is more important - the content. We will start by looking at generic metrics and then come up with more interesting questions at the end.
 
-This report was made to as clean as possible so you won't see any code unless you click on the "code" on the right handside above each plot. The raw code is also available on [github](https://github.com/thibalbo/sf-opendata-insights).
+This report was made to be as clean as possible so you won't see any code unless you click on the "code" on the right handside above each plot. The raw code is also available on [github](https://github.com/thibalbo/sf-opendata-insights).
 
 If you have any questions or suggestions you are more than encouraged to ask them at thiago.dbalbo@gmail.com. I'd love to hear them all in order to improve the analysis.
 

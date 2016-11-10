@@ -18,7 +18,7 @@ Word clouds:
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your machine. In order to have the application up and running you will either have to deploy it entirely to your remote machine or part on your remote machine and part on your local machine.
+These instructions will get you a copy of the project up and running on your machine. In order to have the application up and running you will have to deploy it entirely to your remote machine
 
 ### Prerequisites
 
@@ -38,7 +38,7 @@ For other platforms check [this reference](https://www.rstudio.com/products/shin
 
 ## Deployment
 
-Go to your local machine and run:
+On your remote machine, run:
 
 ```
 git clone https://github.com/thibalbo/sf-opendata-insights.git
@@ -49,6 +49,8 @@ source venv/bin/activate
 pip3 install -r requirements.txt
 deactivate
 ```
+
+That will clone the repo to your remote machine and install the required libraries.
 
 We will also use a local database to store our datasets. On the root directory of your project run:
 
