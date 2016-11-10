@@ -69,6 +69,7 @@ mkdir db
 Before running the application, go to the file config.yml on your root directory and insert your instance DNS and local database configuration there. Then run the setup file:
 
 ```
+source venv/bin/activate
 python3 setup.py
 ```
 
@@ -77,11 +78,8 @@ It will create tables, download the datasets and scrape new content (that might 
 You will also need to install some R packages. Go to the terminal and run:
 
 ```
-R
-packages <- c('data.table', 'RPostgreSQL', 'dplyr', 'ggplot2', 'RColorBrewer', 'plotly', 'zoo', 'lazyeval', 'corrplot', 'tidyr', 'DT', 'xgboost', 'Matrix', 'tm', 'wordcloud', 'visNetwork')
-install.packages(packages, dependencies=TRUE)
-devtools::install_github("hadley/devtools")
-devtools::install_github('mattflor/chorddiag')
+sudo apt-get install r-cran-slam
+sudo su - -c "R -q -e \"packages <- c('data.table', 'RPostgreSQL', 'dplyr', 'ggplot2', 'RColorBrewer', 'plotly', 'zoo', 'lazyeval', 'corrplot', 'tidyr', 'DT', 'xgboost', 'Matrix', 'tm', 'wordcloud', 'visNetwork', 'rmarkdown'); install.packages(packages, repos = 'http://cran.rstudio.com/', dependencies=TRUE, lib='/usr/local/lib/R/site-library')\""
 ```
 
 That should take a few minutes. After that, simply run the application with:
@@ -93,7 +91,6 @@ i.e. Let's say there is a movies.Rmd file under the analyses directory. Then mov
 If you don't have the directory `/srv` you will have to create it.
 
 ```
-source venv/bin/activate
 python3 run.py
 ```
 
