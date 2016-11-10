@@ -96,6 +96,7 @@ If you don't have the directory `/srv` you will have to create it.
 python3 run.py
 ```
 
+Remember: make your remote machine ports `5000` and `3838` open.
 
 ## Built With
 
