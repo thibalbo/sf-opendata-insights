@@ -11,8 +11,17 @@ cur = conn.cursor()
 
 
 class Scrape:
+    """
+    This class will scrape more metadata from each movie. It will get imdbrating
+    and other details.
+    """
 
     def save(self, dataset):
+        """
+        Save data to a local filename.
+
+        :param dataset: data to save
+        """
         with open('datasets/imdb.csv', 'w') as csvfile:
             fieldnames = sorted(dataset[0].keys())
             print(fieldnames)
@@ -22,6 +31,11 @@ class Scrape:
 
 
     def scrape(self, meta):
+        """
+        Scrape data.
+
+        :param meta: metadata of the dataset.
+        """
         with open('datasets/movies.csv') as csvfile:
             reader = csv.DictReader(csvfile)
             sf_movies = [row for row in reader]
